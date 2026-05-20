@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}监控大屏{% endblock %}
+{% block content %}
+<div class="dashboard-page">
+    <header class="dashboard-header">
+        <h1 id="dashboardTitle">监控大屏</h1>
+        {% if public %}
+        <span class="public-badge">公开访问</span>
+        {% endif %}
+    </header>
+    <div class="dashboard-grid" id="dashboardGrid">
+        <div class="loading">加载中...</div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const token = '{{ token }}';
+const isPublic = {{ 'true' if public else 'false' }};
+
+async function loadDashboard() {
+    const resp = await fetch(`/api/dashboards/share/${token}`);
+    const result = await resp.json();
+
+    if (result.code !== 200) {
+        document.getElementById('dashboardGrid').innerHTML =
+            `<div class="error-state">${result.message}</div>`;
+        return;
+    }
+
+    const db = result.data;
+    document.getElementById('dashboardTitle').textContent = db.name;
+    const grid = document.getElementById('dashboardGrid');
+
+    if (!db.cameras || db.cameras.length === 0) {
+        grid.innerHTML = '<div class="empty-state">暂无摄像头</div>';
+        return;
+    }
+
+    grid.innerHTML = db.cameras.map(cam => {
+        const streamUrl = `/api/stream/${cam.id}/mjpeg?_=${Date.now()}`;
+        return `
+        <div class="dashboard-stream">
+            <div class="stream-header">
+                <h3>${cam.name}</h3>
+                <span class="cam-status ${cam.status === 'online' ? 'online' : 'offline'}">
+                    ${cam.status === 'online' ? '在线' : '离线'}
+                </span>
+            </div>
+            <div class="stream-player" id="player-${cam.id}">
+                <img class="dashboard-stream-img" src="${streamUrl}"
+                     onerror="this.parentElement.innerHTML='<div class=\\'stream-placeholder\\'><p>无法连接到摄像头</p></div>'">
+            </div>
+        </div>`;
+    }).join('');
+}
+
+loadDashboard();
+</script>
+{% endblock %}

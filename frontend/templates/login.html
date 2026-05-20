@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}登录 - 萌灵摄像头管理{% endblock %}
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <h1><img src="/static/images/logo.png" style="height:32px;vertical-align:middle;margin-right:10px">萌灵摄像头管理</h1>
+        <div id="defaultHint" class="info-box" style="display:none">
+            ⚠ 检测到系统使用默认密码 <strong>no-password</strong>，请登录后立即修改
+        </div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div id="loginError" class="error-message" style="display:none"></div>
+            <button type="submit" class="btn-primary">登 录</button>
+        </form>
+        <form id="changePasswordForm" style="display:none">
+            <div class="form-group">
+                <label>用户名</label>
+                <p id="changeUsername" class="form-text-static"></p>
+            </div>
+            <div class="info-box">初次使用，请设置新密码</div>
+            <div class="form-group">
+                <label for="newPassword">新密码</label>
+                <input type="password" id="newPassword" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">确认密码</label>
+                <input type="password" id="confirmPassword" required minlength="6">
+            </div>
+            <div id="changeError" class="error-message" style="display:none"></div>
+            <button type="submit" class="btn-primary">设置密码并登录</button>
+        </form>
+    </div>
+</div>
+<script>
+let currentUser = '';
+
+(async function() {
+    try {
+        const resp = await fetch('/api/auth/default-check');
+        const result = await resp.json();
+        if (result.code === 200 && result.data && result.data.is_default) {
+            document.getElementById('defaultHint').style.display = 'block';
+        }
+    } catch(e) {}
+})();
+
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const errorEl = document.getElementById('loginError');
+
+    try {
+        const resp = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        });
+        const result = await resp.json();
+        if (result.code === 200) {
+            if (result.data && result.data.needs_password_change) {
+                currentUser = username;
+                document.getElementById('changeUsername').textContent = username;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('changePasswordForm').style.display = 'block';
+                return;
+            }
+            window.location.href = '/';
+        } else {
+            errorEl.textContent = result.message;
+            errorEl.style.display = 'block';
+        }
+    } catch (err) {
+        errorEl.textContent = '网络错误，请重试';
+        errorEl.style.display = 'block';
+    }
+});
+
+document.getElementById('changePasswordForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const errorEl = document.getElementById('changeError');
+
+    if (newPassword !== confirmPassword) {
+        errorEl.textContent = '两次输入的密码不一致';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: currentUser, old_password: 'no-password', new_password: newPassword})
+        });
+        const result = await resp.json();
+        if (result.code === 200) {
+            alert('密码已修改，请重新登录');
+            document.getElementById('changePasswordForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('password').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        } else {
+            errorEl.textContent = result.message;
+            errorEl.style.display = 'block';
+        }
+    } catch (err) {
+        errorEl.textContent = '网络错误，请重试';
+        errorEl.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

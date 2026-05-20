@@ -1,0 +1,812 @@
+{% extends "base.html" %}
+{% block title %}摄像头管理 - 萌灵摄像头管理{% endblock %}
+{% block content %}
+<div class="app-container">
+    <aside class="sidebar">
+        <h2><img src="/static/images/logo.png" style="height:22px;vertical-align:middle;margin-right:8px">萌灵摄像头管理</h2>
+        <nav class="sidebar-nav-main">
+            <a href="/" class="nav-item active"><img src="/static/images/icon/camera.svg" class="nav-icon"> 摄像头管理</a>
+            <a href="#" id="navDashboard" class="nav-item"><img src="/static/images/icon/dashboard.svg" class="nav-icon"> 监控大屏</a>
+        </nav>
+        <a href="#" id="navAbout" class="nav-item"><img src="/static/images/icon/about.svg" class="nav-icon"> 关于</a>
+        <div class="sidebar-footer">
+            <span id="userInfo"></span>
+            <button id="logoutBtn" class="btn-text">退出登录</button>
+        </div>
+    </aside>
+    <main class="main-content">
+        <header class="page-header">
+            <h1>摄像头管理</h1>
+            <div class="header-actions">
+                <button id="scanBtn" class="btn-secondary"><img src="/static/images/icon/scan.svg" class="btn-icon"> 扫描设备</button>
+                <button id="addCameraBtn" class="btn-primary">+ 添加摄像头</button>
+            </div>
+        </header>
+
+        <section class="camera-grid" id="cameraGrid">
+            <div class="loading">加载中...</div>
+        </section>
+    </main>
+</div>
+
+<!-- 添加/编辑摄像头弹窗 -->
+<div id="cameraModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <span class="modal-close">&times;</span>
+        <h2 id="modalTitle">添加摄像头</h2>
+        <form id="cameraForm">
+            <input type="hidden" id="editCameraId">
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="cameraName">摄像头名称 <span class="required">*</span></label>
+                    <input type="text" id="cameraName" required>
+                </div>
+                <div class="form-group flex-1">
+                    <label for="cameraHost">IP 地址 <span class="required">*</span></label>
+                    <input type="text" id="cameraHost" placeholder="192.168.1.100" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="cameraBrand">品牌</label>
+                    <select id="cameraBrand" class="form-select"></select>
+                </div>
+                <div class="form-group flex-1">
+                    <label for="cameraPort">RTSP 端口</label>
+                    <input type="text" id="cameraPort" inputmode="numeric" value="554">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="cameraStreamType">码流类型</label>
+                <select id="cameraStreamType" class="form-select">
+                    <option value="main">主码流</option>
+                    <option value="sub" selected>子码流</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="cameraUsername">用户名</label>
+                    <input type="text" id="cameraUsername" placeholder="admin">
+                </div>
+                <div class="form-group flex-1">
+                    <label for="cameraPassword">密码</label>
+                    <input type="text" id="cameraPassword">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="cameraLocation">位置</label>
+                    <input type="text" id="cameraLocation" placeholder="例如：正门、仓库">
+                </div>
+                <div class="form-group flex-1">
+                    <label for="cameraRemark">备注</label>
+                    <input type="text" id="cameraRemark">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-primary" id="cameraSubmitBtn">保存</button>
+                <button type="button" class="btn-secondary" id="cameraCancelBtn">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 扫描设备弹窗 -->
+<div id="scanModal" class="modal" style="display:none">
+    <div class="modal-content modal-scan">
+        <span class="modal-close">&times;</span>
+        <h2>扫描到以下设备</h2>
+        <div class="scan-status-bar">
+            <span class="scan-hint">勾选要添加的设备，填写账号密码后点击批量添加</span>
+            <span id="scanStatus" class="scan-status"></span>
+        </div>
+        <div class="scan-batch-set">
+            <span>批量设置：</span>
+            <input type="text" class="scan-input batch-user" placeholder="统一用户名" value="admin">
+            <input type="text" class="scan-input batch-pass" placeholder="统一密码" value="admin123">
+            <button class="btn-sm btn-primary" onclick="batchSetCredentials()">应用到所有</button>
+        </div>
+        <div class="scan-table-wrap">
+            <table class="scan-table" id="scanTable">
+                <thead>
+                    <tr>
+                        <th class="col-check"><input type="checkbox" id="scanSelectAll" checked onchange="toggleAllChecks(this)"></th>
+                        <th class="col-source">来源</th>
+                        <th class="col-name">名称</th>
+                        <th class="col-model">型号/品牌</th>
+                        <th class="col-ip">IP 地址</th>
+                        <th class="col-user">用户名</th>
+                        <th class="col-pass">密码</th>
+                    </tr>
+                </thead>
+                <tbody id="scanTbody"></tbody>
+            </table>
+        </div>
+        <div class="scan-actions">
+            <span class="scan-count" id="scanCount">已选择 0 台设备</span>
+            <div>
+                <button id="scanRefreshBtn" class="btn-secondary">停止扫描</button>
+                <button id="scanBatchAddBtn" class="btn-primary">批量添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 大屏管理弹窗 -->
+<div id="dashboardModal" class="modal" style="display:none">
+    <div class="modal-content modal-wide">
+        <span class="modal-close">&times;</span>
+        <h2>监控大屏管理</h2>
+        <div class="dashboard-toolbar">
+            <input type="text" id="newDashboardName" placeholder="输入大屏名称">
+            <button id="createDashboardBtn" class="btn-primary">创建大屏</button>
+        </div>
+        <div id="dashboardList"></div>
+    </div>
+</div>
+
+<!-- 大屏详情弹窗 -->
+<div id="dashboardDetailModal" class="modal" style="display:none">
+    <div class="modal-content modal-wide">
+        <span class="modal-close">&times;</span>
+        <h2 id="detailDashboardTitle">大屏详情</h2>
+        <div id="dashboardDetailContent"></div>
+    </div>
+</div>
+
+<!-- 关于弹窗 -->
+<div id="aboutModal" class="modal" style="display:none">
+    <div class="modal-content" style="width:420px">
+        <span class="modal-close">&times;</span>
+        <h2>关于</h2>
+        <div style="text-align:center;padding:8px 0 16px">
+            <div style="font-size:40px;margin-bottom:12px"><img src="/static/images/logo.png" style="height:48px"></div>
+            <p style="font-weight:600;font-size:16px;margin-bottom:4px">萌灵摄像头管理</p>
+            <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">
+                基于 Python 的监控设备管理 Web 系统
+            </p>
+            <div style="background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:16px;text-align:left;font-size:13px;line-height:2">
+                <div><strong>技术栈</strong> Flask + Jinja2 + hls.js + FFmpeg</div>
+                <div><strong>功能</strong> 设备发现 · RTSP 配置 · HLS 实时预览 · 监控大屏</div>
+                <div><strong>Github</strong> <a href="https://github.com/mgodex/camera-management-python" target="_blank" style="color:var(--primary);text-decoration:none">mgodex/camera-management-python</a></div>
+                <div><strong>博客</strong> <a href="https://www.meng.me/" target="_blank" style="color:var(--primary);text-decoration:none">meng.me</a></div>
+            </div>
+            <p style="margin-top:16px;font-size:12px;color:var(--text-secondary)">
+                此程序来源于：<a href="https://mengling.meng.me" target="_blank" style="color:var(--primary);text-decoration:none">萌灵工具软件</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const API = {
+    check: '/api/auth/check',
+    logout: '/api/auth/logout',
+    cameras: '/api/cameras',
+    scan: '/api/cameras/scan',
+    scanStream: '/api/cameras/scan-stream',
+    dashboards: '/api/dashboards',
+};
+
+let currentUser = null;
+
+async function apiFetch(url, options = {}) {
+    try {
+        const resp = await fetch(url, {
+            headers: {'Content-Type': 'application/json', ...options.headers},
+            ...options,
+        });
+        return await resp.json();
+    } catch (e) {
+        return {code: 500, message: '网络错误'};
+    }
+}
+
+async function checkAuth() {
+    const result = await apiFetch(API.check);
+    if (result.code === 200) {
+        currentUser = result.data;
+        document.getElementById('userInfo').textContent = currentUser.username;
+    } else {
+        window.location.href = '/login';
+    }
+}
+
+let brandPresets = {};
+async function loadBrandPresets() {
+    const result = await apiFetch('/api/cameras/brand-presets');
+    if (result.code !== 200) return;
+    const sel = document.getElementById('cameraBrand');
+    result.data.forEach(p => {
+        brandPresets[p.id] = p;
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.label;
+        sel.appendChild(opt);
+    });
+    sel.value = 'other';
+    const streamTypeSel = document.getElementById('cameraStreamType');
+    function updatePath() {
+        const preset = brandPresets[sel.value];
+        if (preset) {
+            document.getElementById('cameraPort').value = preset.port;
+        }
+    }
+    sel.onchange = function() {
+        updatePath();
+    };
+    streamTypeSel.onchange = function() {
+        updatePath();
+    };
+}
+
+async function loadCameras() {
+    const result = await apiFetch(API.cameras);
+    const grid = document.getElementById('cameraGrid');
+    if (result.code !== 200 || !result.data || result.data.length === 0) {
+        grid.innerHTML = '<div class="empty-state">暂无摄像头，点击右上角添加</div>';
+        return;
+    }
+    grid.innerHTML = result.data.map(cam => {
+        const displayName = cam.host ? `${cam.host}${cam.brand && brandPresets[cam.brand] ? ' ' + brandPresets[cam.brand].label : ''}` : cam.name;
+        return `
+        <div class="camera-card" data-id="${cam.id}">
+            <div class="camera-preview" id="preview-${cam.id}">
+                ${cam.location ? `<div class="cam-location">📍 ${cam.location}</div>` : ''}
+                <div class="cam-status ${cam.status === 'online' ? 'online' : 'offline'}">${cam.status === 'online' ? '在线' : '离线'}</div>
+                <div class="preview-placeholder" id="placeholder-${cam.id}">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#475569" stroke-width="1.5"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                </div>
+                <video class="preview-video" id="video-${cam.id}" muted playsinline preload="none" style="display:none"></video>
+                <div class="preview-loading" id="loading-${cam.id}" style="display:none">
+                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#60a5fa" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg>
+                </div>
+                <div class="preview-controls" id="controls-${cam.id}">
+                    <button class="ctrl-btn" onclick="togglePreview('${cam.id}')" id="playBtn-${cam.id}" title="播放">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <button class="ctrl-btn" onclick="togglePreview('${cam.id}')" id="pauseBtn-${cam.id}" title="暂停" style="display:none">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>
+                    </button>
+                    <button class="ctrl-btn ctrl-fullscreen" onclick="fullscreenPreview('${cam.id}')" title="全屏">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="camera-info">
+                <h3>${escHtml(displayName)}</h3>
+                ${cam.remark ? `<p class="camera-remark">${cam.remark}</p>` : ''}
+            </div>
+            <div class="camera-actions">
+                <button class="btn-sm btn-primary" onclick="editCamera('${cam.id}')">编辑</button>
+                <button class="btn-sm btn-danger" onclick="deleteCamera('${cam.id}')">删除</button>
+            </div>
+        </div>`;
+    }).join('');
+    checkAllStatus();
+}
+
+// ── Camera CRUD ─────────────────────────────────────
+
+const cameraModal = document.getElementById('cameraModal');
+document.getElementById('addCameraBtn').onclick = () => openCameraForm();
+cameraModal.querySelector('.modal-close').onclick = () => cameraModal.style.display = 'none';
+document.getElementById('cameraCancelBtn').onclick = () => cameraModal.style.display = 'none';
+
+function openCameraForm(cam) {
+    document.getElementById('modalTitle').textContent = cam ? '编辑摄像头' : '添加摄像头';
+    document.getElementById('cameraSubmitBtn').textContent = cam ? '更新' : '保存';
+    document.getElementById('editCameraId').value = cam ? cam.id : '';
+    document.getElementById('cameraName').value = cam ? (cam.name || '') : '';
+    document.getElementById('cameraHost').value = cam ? (cam.host || '') : '';
+    const brandSel = document.getElementById('cameraBrand');
+    if (cam && cam.brand && brandPresets[cam.brand]) {
+        brandSel.value = cam.brand;
+    } else {
+        brandSel.value = 'other';
+    }
+    const streamTypeSel = document.getElementById('cameraStreamType');
+    if (cam) {
+        if (cam.stream_type) {
+            streamTypeSel.value = cam.stream_type;
+        } else if (cam.path && brandPresets[cam.brand]) {
+            const streams = brandPresets[cam.brand].streams;
+            streamTypeSel.value = cam.path === streams.main ? 'main' : 'sub';
+        } else {
+            streamTypeSel.value = 'sub';
+        }
+    }
+    brandSel.onchange();
+    if (cam && cam.port) document.getElementById('cameraPort').value = String(cam.port);
+    document.getElementById('cameraUsername').value = cam ? (cam.username || '') : '';
+    document.getElementById('cameraPassword').value = cam ? (cam.password || '') : '';
+    document.getElementById('cameraLocation').value = cam ? (cam.location || '') : '';
+    document.getElementById('cameraRemark').value = cam ? (cam.remark || '') : '';
+    cameraModal.style.display = 'flex';
+}
+
+document.getElementById('cameraForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const editId = document.getElementById('editCameraId').value;
+    const data = {
+        name: document.getElementById('cameraName').value,
+        host: document.getElementById('cameraHost').value,
+        port: parseInt(document.getElementById('cameraPort').value) || 554,
+        stream_type: document.getElementById('cameraStreamType').value,
+        brand: document.getElementById('cameraBrand').value,
+        username: document.getElementById('cameraUsername').value,
+        password: document.getElementById('cameraPassword').value,
+        location: document.getElementById('cameraLocation').value,
+        remark: document.getElementById('cameraRemark').value,
+    };
+
+    if (!data.host) {
+        alert('请输入 IP 地址');
+        return;
+    }
+
+    let result;
+    if (editId) {
+        result = await apiFetch(`${API.cameras}/${editId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    } else {
+        result = await apiFetch(API.cameras, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    if (result.code === 200 || result.code === 201) {
+        cameraModal.style.display = 'none';
+        loadCameras();
+    } else {
+        alert(result.message);
+    }
+};
+
+async function editCamera(id) {
+    const result = await apiFetch(`${API.cameras}/${id}`);
+    if (result.code !== 200) return;
+    openCameraForm(result.data);
+}
+
+async function deleteCamera(id) {
+    if (!confirm('确定删除此摄像头？')) return;
+    const result = await apiFetch(`${API.cameras}/${id}`, {method: 'DELETE'});
+    if (result.code === 200) loadCameras();
+}
+
+// ── Live Preview ────────────────────────────────────
+
+let previewStates = {};
+
+const hlsInstances = {};
+
+async function togglePreview(cameraId) {
+    const video = document.getElementById(`video-${cameraId}`);
+    const placeholder = document.getElementById(`placeholder-${cameraId}`);
+    const loading = document.getElementById(`loading-${cameraId}`);
+    const playBtn = document.getElementById(`playBtn-${cameraId}`);
+    const pauseBtn = document.getElementById(`pauseBtn-${cameraId}`);
+    const controls = document.getElementById(`controls-${cameraId}`);
+
+    if (previewStates[cameraId]) {
+        if (hlsInstances[cameraId]) {
+            hlsInstances[cameraId].destroy();
+            delete hlsInstances[cameraId];
+        }
+        video.style.display = 'none';
+        video.removeAttribute('src');
+        video.load();
+        placeholder.style.display = 'flex';
+        loading.style.display = 'none';
+        playBtn.style.display = '';
+        pauseBtn.style.display = 'none';
+        previewStates[cameraId] = false;
+        controls.classList.remove('playing');
+        playBtn.disabled = false;
+        await apiFetch(`/api/stream/${cameraId}/hls/stop`, {method: 'POST'});
+        return;
+    }
+
+    placeholder.style.display = 'none';
+    loading.style.display = 'flex';
+    playBtn.disabled = true;
+
+    const result = await apiFetch(`/api/stream/${cameraId}/hls/start`, {method: 'POST'});
+    if (result.code !== 200) {
+        loading.style.display = 'none';
+        placeholder.style.display = 'flex';
+        playBtn.disabled = false;
+        alert(result.message);
+        return;
+    }
+
+    loading.style.display = 'none';
+    video.style.display = 'block';
+
+    const playlistUrl = result.data.playlist;
+    if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(playlistUrl);
+        hls.attachMedia(video);
+        hlsInstances[cameraId] = hls;
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            video.muted = true;
+            video.play().catch(() => {});
+        });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = playlistUrl;
+        video.muted = true;
+        video.play().catch(() => {});
+    }
+
+    playBtn.style.display = 'none';
+    pauseBtn.style.display = '';
+    previewStates[cameraId] = true;
+    controls.classList.add('playing');
+}
+
+function fullscreenPreview(cameraId) {
+    const video = document.getElementById(`video-${cameraId}`);
+    if (video.requestFullscreen) video.requestFullscreen();
+    else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+}
+
+async function checkAllStatus() {
+    const result = await apiFetch('/api/cameras/check-status', {method: 'POST'});
+    if (result.code !== 200 || !result.data) return;
+    Object.entries(result.data).forEach(([id, status]) => {
+        const badge = document.querySelector(`.camera-card[data-id="${id}"] .cam-status`);
+        if (badge) {
+            badge.className = 'cam-status ' + status;
+            badge.textContent = status === 'online' ? '在线' : '离线';
+        }
+    });
+}
+
+// ── Device Scan ─────────────────────────────────────
+
+const scanModal = document.getElementById('scanModal');
+const scanTbody = document.getElementById('scanTbody');
+const scanSelectAll = document.getElementById('scanSelectAll');
+const scanCount = document.getElementById('scanCount');
+const scanStatus = document.getElementById('scanStatus');
+const scanRefreshBtn = document.getElementById('scanRefreshBtn');
+let scanEventSource = null;
+let scanning = false;
+
+scanModal.querySelector('.modal-close').onclick = () => {
+    stopScanStream();
+    scanModal.style.display = 'none';
+};
+
+document.getElementById('scanBtn').onclick = function() {
+    scanTbody.innerHTML = '';
+    setScanActive(true);
+    scanModal.style.display = 'flex';
+    updateScanCount();
+    startScanStream();
+};
+
+scanRefreshBtn.onclick = function() {
+    if (scanning) {
+        // 停止扫描
+        stopScanStream();
+        setScanActive(false);
+        setScanStatus('', '扫描已停止');
+        return;
+    }
+    // 重新扫描
+    scanTbody.innerHTML = '';
+    setScanActive(true);
+    updateScanCount();
+    startScanStream();
+};
+
+function setScanStatus(cls, text) {
+    scanStatus.className = 'scan-status ' + cls;
+    scanStatus.textContent = text;
+}
+
+function setScanActive(active) {
+    scanning = active;
+    if (active) {
+        scanRefreshBtn.textContent = '停止扫描';
+        setScanStatus('scanning', '正在扫描网络设备...');
+    } else {
+        scanRefreshBtn.textContent = '重新扫描';
+    }
+}
+
+function stopScanStream() {
+    if (scanEventSource) {
+        scanEventSource.close();
+        scanEventSource = null;
+    }
+}
+
+function startScanStream() {
+    stopScanStream();
+
+    const streamUrl = `${API.scanStream}?_=${Date.now()}`;
+    const source = new EventSource(streamUrl);
+    scanEventSource = source;
+    let deviceCount = 0;
+
+    source.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'done') {
+            source.close();
+            scanEventSource = null;
+            setScanActive(false);
+            setScanStatus('completed', '扫描完成');
+            if (deviceCount === 0) {
+                scanTbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">未扫描到设备</div></td></tr>';
+            }
+            updateScanCount();
+            return;
+        }
+
+        deviceCount++;
+        appendScanDevice(data);
+    };
+
+    source.onerror = function() {
+        source.close();
+        scanEventSource = null;
+        setScanActive(false);
+        setScanStatus('error', '扫描中断');
+        if (deviceCount === 0) {
+            scanTbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">扫描中断或未发现设备</div></td></tr>';
+        }
+        updateScanCount();
+    };
+}
+
+function appendScanDevice(dev) {
+    const tr = document.createElement('tr');
+    const srcIcon = dev.source === 'onvif' ? 'ONVIF' : 'TCP';
+    const model = dev.source === 'onvif' ? (dev.hardware || dev.model || '—') : '—';
+    const displayName = dev.source === 'onvif' ? (dev.hardware || dev.name || dev.ip) : (dev.name || dev.ip);
+    tr.innerHTML = `
+        <td class="col-check"><input type="checkbox" class="scan-check" checked></td>
+        <td class="col-source"><span class="badge badge-${dev.source}">${srcIcon}</span></td>
+        <td class="col-name">${escHtml(displayName)}</td>
+        <td class="col-model">${escHtml(model)}</td>
+        <td class="col-ip">${escHtml(dev.ip)}<input type="hidden" class="scan-ip" value="${escHtml(dev.ip)}"><input type="hidden" class="scan-brand" value="${escHtml(dev.brand || '')}"></td>
+        <td class="col-user"><input type="text" class="scan-input scan-user" placeholder="admin" value="admin"></td>
+        <td class="col-pass"><input type="text" class="scan-input scan-pass" placeholder="密码" value="admin123"></td>
+    `;
+    tr.querySelector('.scan-check').onchange = updateScanCount;
+    scanTbody.appendChild(tr);
+    updateScanCount();
+}
+
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function updateScanCount() {
+    const checked = document.querySelectorAll('.scan-check:checked').length;
+    const total = document.querySelectorAll('.scan-check').length;
+    scanCount.textContent = `已选择 ${checked} / ${total} 台设备`;
+}
+
+function toggleAllChecks(el) {
+    document.querySelectorAll('.scan-check').forEach(cb => cb.checked = el.checked);
+    updateScanCount();
+}
+
+function batchSetCredentials() {
+    const user = document.querySelector('.batch-user').value;
+    const pass = document.querySelector('.batch-pass').value;
+    document.querySelectorAll('.scan-user').forEach(el => el.value = user);
+    document.querySelectorAll('.scan-pass').forEach(el => el.value = pass);
+}
+
+document.getElementById('scanBatchAddBtn').onclick = async function() {
+    const rows = document.querySelectorAll('#scanTbody tr:not(.scan-loading)');
+    const selected = [];
+    rows.forEach(row => {
+        const cb = row.querySelector('.scan-check');
+        if (!cb || !cb.checked) return;
+        selected.push({
+            name: row.querySelector('.col-name')?.textContent?.trim() || '',
+            host: row.querySelector('.scan-ip')?.value || '',
+            brand: row.querySelector('.scan-brand')?.value || '',
+            stream_type: 'main',
+            username: row.querySelector('.scan-user')?.value || '',
+            password: row.querySelector('.scan-pass')?.value || '',
+            location: '',
+            remark: '',
+        });
+    });
+
+    if (selected.length === 0) {
+        alert('请至少选择一台设备');
+        return;
+    }
+
+    this.disabled = true;
+    this.textContent = '⏳ 添加中...';
+
+    let added = 0, failed = 0;
+    for (const dev of selected) {
+        const result = await apiFetch(API.cameras, {
+            method: 'POST',
+            body: JSON.stringify(dev),
+        });
+        if (result.code === 201) added++;
+        else failed++;
+    }
+
+    this.disabled = false;
+    this.textContent = '批量添加';
+    stopScanStream();
+    scanModal.style.display = 'none';
+    loadCameras();
+    alert(`批量添加完成：成功 ${added} 台${failed ? `，失败 ${failed} 台` : ''}`);
+};
+
+// ── Dashboard ───────────────────────────────────────
+
+let currentDashboards = [];
+
+document.getElementById('navDashboard').onclick = function(e) {
+    e.preventDefault();
+    loadDashboards();
+    document.getElementById('dashboardModal').style.display = 'flex';
+};
+
+document.getElementById('navAbout').onclick = function(e) {
+    e.preventDefault();
+    document.getElementById('aboutModal').style.display = 'flex';
+};
+
+document.querySelectorAll('.modal-close').forEach(el => {
+    el.onclick = function() {
+        this.closest('.modal').style.display = 'none';
+    };
+});
+
+document.getElementById('createDashboardBtn').onclick = async function() {
+    const name = document.getElementById('newDashboardName').value.trim();
+    if (!name) return alert('请输入大屏名称');
+    const result = await apiFetch(API.dashboards, {
+        method: 'POST',
+        body: JSON.stringify({name}),
+    });
+    if (result.code === 201) {
+        document.getElementById('newDashboardName').value = '';
+        loadDashboards();
+    } else {
+        alert(result.message);
+    }
+};
+
+async function loadDashboards() {
+    const result = await apiFetch(API.dashboards);
+    if (result.code !== 200) return;
+    currentDashboards = result.data || [];
+    const list = document.getElementById('dashboardList');
+    if (currentDashboards.length === 0) {
+        list.innerHTML = '<div class="empty-state">暂无监控大屏，创建一个吧</div>';
+        return;
+    }
+    list.innerHTML = currentDashboards.map(db => `
+        <div class="dashboard-item">
+            <div class="dashboard-info">
+                <strong>${db.name}</strong>
+                <span class="dashboard-count">${(db.camera_ids || []).length} 个摄像头</span>
+            </div>
+            <div class="dashboard-actions">
+                <button class="btn-sm btn-primary" onclick="viewDashboard('${db.id}')">管理</button>
+                <button class="btn-sm btn-danger" onclick="deleteDashboard('${db.id}')">删除</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function viewDashboard(id) {
+    const result = await apiFetch(`${API.dashboards}/${id}`);
+    if (result.code !== 200) return;
+    const db = result.data;
+    document.getElementById('detailDashboardTitle').textContent = db.name;
+    const shareUrl = `${window.location.origin}/dashboard-view/${db.token}`;
+
+    let content = `
+        <div class="dashboard-detail-toolbar">
+            <div class="share-url-box">
+                <label>大屏分享链接（免密访问）：</label>
+                <div class="url-row">
+                    <input type="text" value="${shareUrl}" readonly>
+                    <button class="btn-sm btn-primary" onclick="navigator.clipboard.writeText('${shareUrl}')">复制</button>
+                </div>
+            </div>
+            <button class="btn-sm btn-secondary" onclick="regenerateToken('${db.id}')">重置链接</button>
+        </div>
+        <h3>已选摄像头（${(db.cameras || []).length}）</h3>
+        <div class="dashboard-cameras">
+            ${(db.cameras || []).map(cam => `
+                <div class="dashboard-camera-item">
+                    <span>${cam.name}</span>
+                    <button class="btn-sm btn-danger" onclick="removeCamFromDashboard('${db.id}','${cam.id}')">移除</button>
+                </div>
+            `).join('') || '<div class="empty-state">暂未添加摄像头</div>'}
+        </div>
+        <h3>添加摄像头</h3>
+        <select id="addCameraSelect" class="form-select">
+            <option value="">-- 选择摄像头 --</option>
+        </select>
+        <button class="btn-primary" onclick="addCamToDashboard('${db.id}')">添加</button>
+    `;
+    document.getElementById('dashboardDetailContent').innerHTML = content;
+    document.getElementById('dashboardDetailModal').style.display = 'flex';
+
+    const allCams = await apiFetch(API.cameras);
+    if (allCams.code === 200 && allCams.data) {
+        const select = document.getElementById('addCameraSelect');
+        const existingIds = (db.cameras || []).map(c => c.id);
+        allCams.data.filter(c => !existingIds.includes(c.id)).forEach(cam => {
+            const opt = document.createElement('option');
+            opt.value = cam.id;
+            opt.textContent = cam.name;
+            select.appendChild(opt);
+        });
+    }
+}
+
+async function addCamToDashboard(dashboardId) {
+    const select = document.getElementById('addCameraSelect');
+    const cameraId = select.value;
+    if (!cameraId) return alert('请选择摄像头');
+    const result = await apiFetch(`${API.dashboards}/${dashboardId}/cameras`, {
+        method: 'POST',
+        body: JSON.stringify({camera_id: cameraId}),
+    });
+    if (result.code === 200) {
+        viewDashboard(dashboardId);
+    } else {
+        alert(result.message);
+    }
+}
+
+async function removeCamFromDashboard(dashboardId, cameraId) {
+    const result = await apiFetch(`${API.dashboards}/${dashboardId}/cameras/${cameraId}`, {method: 'DELETE'});
+    if (result.code === 200) viewDashboard(dashboardId);
+}
+
+async function regenerateToken(dashboardId) {
+    if (!confirm('重置链接后，原链接将失效，确定继续？')) return;
+    const result = await apiFetch(`${API.dashboards}/${dashboardId}/regenerate-token`, {method: 'POST'});
+    if (result.code === 200) viewDashboard(dashboardId);
+}
+
+async function deleteDashboard(id) {
+    if (!confirm('确定删除此大屏？')) return;
+    const result = await apiFetch(`${API.dashboards}/${id}`, {method: 'DELETE'});
+    if (result.code === 200) {
+        document.getElementById('dashboardDetailModal').style.display = 'none';
+        loadDashboards();
+    }
+}
+
+// Logout
+document.getElementById('logoutBtn').onclick = async function() {
+    await apiFetch(API.logout, {method: 'POST'});
+    window.location.href = '/login';
+};
+
+// Init
+checkAuth().then(() => loadBrandPresets()).then(() => loadCameras());
+</script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@0.14.17/dist/hls.min.js"></script>
+{% endblock %}
