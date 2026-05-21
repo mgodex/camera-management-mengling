@@ -1,22 +1,28 @@
 {% extends "base.html" %}
 {% block title %}监控大屏{% endblock %}
 {% block content %}
-<div class="dashboard-page">
-    <header class="dashboard-header">
-        <h1 id="dashboardTitle">监控大屏</h1>
-        {% if public %}
-        <span class="public-badge">公开访问</span>
-        {% endif %}
-    </header>
-    <div class="dashboard-grid" id="dashboardGrid">
-        <div class="loading">加载中...</div>
+<div class="dashboard-page" id="dashboardPage">
+    <div class="dashboard-grid" id="dashboardGrid"></div>
+    <div class="dashboard-pagination" id="dashboardPagination" style="display:none">
+        <button class="page-btn" id="prevPageBtn">&lt;</button>
+        <span class="page-info" id="pageInfo">1 / 1</span>
+        <button class="page-btn" id="nextPageBtn">&gt;</button>
+        <span class="page-timer" id="pageTimer"></span>
     </div>
+    <div class="loading" id="dashboardLoading">加载中...</div>
 </div>
 {% endblock %}
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/hls.js@0.14.17/dist/hls.min.js"></script>
 <script>
 const token = '{{ token }}';
-const isPublic = {{ 'true' if public else 'false' }};
+let dbData = null;
+let currentPage = 0;
+let totalPages = 0;
+let perPage = 12;
+let autoTimer = null;
+let hlsInstances = {};
+let lastShowPage = 0;
 
 async function loadDashboard() {
     const resp = await fetch(`/api/dashboards/share/${token}`);
@@ -28,31 +34,187 @@ async function loadDashboard() {
         return;
     }
 
-    const db = result.data;
-    document.getElementById('dashboardTitle').textContent = db.name;
-    const grid = document.getElementById('dashboardGrid');
+    dbData = result.data;
+    const cols = dbData.cols || 4;
+    const rows = dbData.rows || 3;
+    perPage = cols * rows;
 
-    if (!db.cameras || db.cameras.length === 0) {
-        grid.innerHTML = '<div class="empty-state">暂无摄像头</div>';
+    const grid = document.getElementById('dashboardGrid');
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+    const cams = dbData.cameras || [];
+    totalPages = Math.ceil(cams.length / perPage) || 1;
+
+    if (cams.length === 0) {
+        document.getElementById('dashboardGrid').innerHTML = '<div class="empty-state text-light">暂无摄像头</div>';
         return;
     }
 
-    grid.innerHTML = db.cameras.map(cam => {
-        const streamUrl = `/api/stream/${cam.id}/mjpeg?_=${Date.now()}`;
-        return `
-        <div class="dashboard-stream">
-            <div class="stream-header">
-                <h3>${cam.name}</h3>
-                <span class="cam-status ${cam.status === 'online' ? 'online' : 'offline'}">
-                    ${cam.status === 'online' ? '在线' : '离线'}
-                </span>
+    document.getElementById('dashboardPagination').style.display = totalPages > 1 ? 'flex' : 'none';
+    document.getElementById('dashboardLoading').style.display = 'none';
+    showPage(0);
+}
+
+function showPage(page) {
+    const now = Date.now();
+    if (now - lastShowPage < 3000) {
+        console.log('[DEBUG showPage] throttled, last was', now - lastShowPage, 'ms ago');
+        return;
+    }
+    lastShowPage = now;
+    if (!dbData) return;
+    const cams = dbData.cameras || [];
+    currentPage = Math.max(0, Math.min(page, totalPages - 1));
+    console.log('[DEBUG showPage] page=', page, 'currentPage=', currentPage, 'totalPages=', totalPages, 'perPage=', perPage, 'totalCams=', cams.length);
+
+    clearPageStreams();
+
+    const start = currentPage * perPage;
+    const pageCams = cams.slice(start, start + perPage);
+    console.log('[DEBUG showPage] pageCams count=', pageCams.length, 'start=', start);
+
+    const grid = document.getElementById('dashboardGrid');
+    grid.innerHTML = pageCams.map(cam => `
+        <div class="dashboard-stream" ondblclick="fullscreenStream(this)">
+            <div class="stream-label">${escHtml(cam.host || cam.name)}${cam.location ? ' · ' + escHtml(cam.location) : ''}</div>
+            <div class="stream-player">
+                <video class="preview-video" id="video-${cam.id}" muted playsinline preload="none" style="display:none"></video>
+                <div class="stream-loading" id="loading-${cam.id}">加载中...</div>
             </div>
-            <div class="stream-player" id="player-${cam.id}">
-                <img class="dashboard-stream-img" src="${streamUrl}"
-                     onerror="this.parentElement.innerHTML='<div class=\\'stream-placeholder\\'><p>无法连接到摄像头</p></div>'">
-            </div>
-        </div>`;
-    }).join('');
+        </div>
+    `).join('');
+
+    // Start HLS streams sequentially with 2s gap to respect NVR connection limit
+    pageCams.forEach((cam, i) => {
+        console.log('[DEBUG showPage] scheduling cam', i, cam.id, cam.host);
+        setTimeout(() => startHlsStream(cam), i * 500);
+    });
+
+    document.getElementById('pageInfo').textContent = `${currentPage + 1} / ${totalPages}`;
+    document.getElementById('prevPageBtn').disabled = currentPage === 0;
+    document.getElementById('nextPageBtn').disabled = currentPage >= totalPages - 1;
+
+    resetAutoAdvance();
+}
+
+async function startHlsStream(cam) {
+    console.log('[DEBUG startHlsStream] starting cam=', cam.id, cam.host);
+    const loading = document.getElementById('loading-' + cam.id);
+    const video = document.getElementById('video-' + cam.id);
+    if (!loading || !video) {
+        console.log('[DEBUG startHlsStream] DOM not found for', cam.id);
+        return;
+    }
+
+    const url = `/api/stream/${cam.id}/hls/start?token=${token}`;
+    console.log('[DEBUG startHlsStream] POST', url);
+    const result = await fetch(url, {method: 'POST'});
+    const data = await result.json();
+    console.log('[DEBUG startHlsStream] response', data);
+
+    if (data.code !== 200) {
+        loading.innerHTML = data.message || '无法连接到摄像头';
+        return;
+    }
+
+    loading.style.display = 'none';
+    video.style.display = 'block';
+
+    const playlistUrl = data.data.playlist + `?token=${token}`;
+    if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(playlistUrl);
+        hls.attachMedia(video);
+        hlsInstances[cam.id] = hls;
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            video.muted = true;
+            video.play().catch(() => {});
+        });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = playlistUrl;
+        video.muted = true;
+        video.play().catch(() => {});
+    }
+}
+
+function clearPageStreams() {
+    // Stop all HLS instances
+    Object.keys(hlsInstances).forEach(id => {
+        if (hlsInstances[id]) {
+            hlsInstances[id].destroy();
+            delete hlsInstances[id];
+        }
+        // Stop HLS on server
+        fetch(`/api/stream/${id}/hls/stop?token=${token}`, {method: 'POST'}).catch(() => {});
+    });
+    // Reset video elements
+    document.querySelectorAll('.preview-video').forEach(v => {
+        v.style.display = 'none';
+        v.removeAttribute('src');
+        v.load();
+    });
+    document.querySelectorAll('.stream-loading').forEach(el => {
+        el.style.display = 'block';
+        el.textContent = '加载中...';
+    });
+}
+
+document.getElementById('prevPageBtn').onclick = function() {
+    if (currentPage > 0) showPage(currentPage - 1);
+};
+
+document.getElementById('nextPageBtn').onclick = function() {
+    if (currentPage < totalPages - 1) showPage(currentPage + 1);
+};
+
+function resetAutoAdvance() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    const timerEl = document.getElementById('pageTimer');
+    if (totalPages <= 1) { timerEl.textContent = ''; return; }
+    let seconds = 10;
+    timerEl.textContent = `${seconds}s`;
+    autoTimer = setInterval(() => {
+        seconds--;
+        timerEl.textContent = `${seconds}s`;
+        if (seconds <= 0) {
+            seconds = 10;
+            if (currentPage < totalPages - 1) {
+                showPage(currentPage + 1);
+            } else {
+                showPage(0);
+            }
+        }
+    }, 1000);
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight') document.getElementById('nextPageBtn').click();
+    if (e.key === 'ArrowLeft') document.getElementById('prevPageBtn').click();
+});
+
+function fullscreenStream(el) {
+    const video = el.querySelector('video');
+    if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+    } else {
+        if (el.requestFullscreen) el.requestFullscreen();
+    }
+}
+
+document.addEventListener('fullscreenchange', function() {
+    if (document.fullscreenElement) {
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+        document.getElementById('pageTimer').textContent = '';
+    } else {
+        resetAutoAdvance();
+    }
+});
+
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
 }
 
 loadDashboard();

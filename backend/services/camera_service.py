@@ -31,7 +31,7 @@ def get_camera(camera_id):
 
 def add_camera(name, host='', rtsp_url='', username='', password='',
                port=None, path='', brand='', stream_type='sub',
-               location='', remark=''):
+               location='', remark='', record_enabled=False):
     preset = BRAND_PRESETS.get(brand or 'other', BRAND_PRESETS['other'])
     if port is None:
         port = preset['port']
@@ -51,6 +51,7 @@ def add_camera(name, host='', rtsp_url='', username='', password='',
         'rtsp_url': rtsp_url or _build_rtsp_url(host, port, path, username, password),
         'location': location,
         'remark': remark,
+        'record_enabled': record_enabled,
         'status': 'offline',
         'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
         'updated_at': time.strftime('%Y-%m-%d %H:%M:%S'),

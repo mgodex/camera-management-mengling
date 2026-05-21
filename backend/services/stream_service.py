@@ -61,8 +61,9 @@ class CameraStream:
             '-analyzeduration', '2000000',
             '-i', self.rtsp_url,
             '-f', 'image2pipe', '-vcodec', 'mjpeg',
-            '-q:v', '1', '-pix_fmt', 'yuvj420p',
+            '-q:v', '5', '-pix_fmt', 'yuvj420p',
             '-r', str(self.fps), '-an',
+            '-vf', 'scale=854:-1',
             '-loglevel', 'error', 'pipe:1',
         ]
         try:
@@ -133,8 +134,13 @@ class HLSStream:
             '-loglevel', 'error', playlist,
         ]
         try:
-            self.process = subprocess.Popen(cmd, stderr=subprocess.DEVNULL)
-        except Exception:
+            logfile = os.path.join(self.output_dir, 'ffmpeg.log')
+            self.process = subprocess.Popen(
+                cmd, stderr=open(logfile, 'w'), stdout=subprocess.DEVNULL,
+            )
+            print(f'[HLSStream start] {self.camera_id} pid={self.process.pid} log={logfile}')
+        except Exception as e:
+            print(f'[HLSStream start] {self.camera_id} FAILED: {e}')
             self.running = False
 
     def is_ready(self, timeout=15):
@@ -162,12 +168,24 @@ class HLSStream:
 
 
 class StreamManager:
+    MAX_CONCURRENT = 64
+
     def __init__(self):
         self._mjpeg = {}
         self._hls = {}
         self._lock = threading.Lock()
         self._cleanup_thread = threading.Thread(target=self._cleanup_loop, daemon=True)
         self._cleanup_thread.start()
+
+    def _active_count(self):
+        count = 0
+        for s in self._mjpeg.values():
+            if s.running:
+                count += 1
+        for s in self._hls.values():
+            if s.running:
+                count += 1
+        return count
 
     # ── MJPEG (dashboard) ──
 
@@ -177,6 +195,8 @@ class StreamManager:
             if existing and existing.running:
                 existing.last_access = time.time()
                 return existing
+            if self._active_count() >= self.MAX_CONCURRENT:
+                return None
             st = CameraStream(camera_id, rtsp_url)
             st.start()
             self._mjpeg[camera_id] = st
@@ -202,6 +222,8 @@ class StreamManager:
             if existing and existing.running:
                 existing.last_access = time.time()
                 return existing
+            if self._active_count() >= self.MAX_CONCURRENT:
+                return None
             st = HLSStream(camera_id, rtsp_url)
             st.start()
             self._hls[camera_id] = st

@@ -20,10 +20,16 @@ def create_dashboard():
     name = data.get('name', '').strip()
     if not name:
         return bad_request('大屏名称不能为空')
+    token = data.get('token', '').strip() or None
     dashboard = dashboard_service.create_dashboard(
         name=name,
         camera_ids=data.get('camera_ids'),
+        token=token,
+        cols=data.get('cols', 4),
+        rows=data.get('rows', 3),
     )
+    if not dashboard:
+        return bad_request('路径已被占用，请换一个')
     return created(data=dashboard)
 
 

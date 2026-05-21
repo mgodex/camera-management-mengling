@@ -5,7 +5,7 @@
     <aside class="sidebar">
         <h2><img src="/static/images/logo.png" style="height:22px;vertical-align:middle;margin-right:8px">萌灵摄像头管理</h2>
         <nav class="sidebar-nav-main">
-            <a href="/" class="nav-item active"><img src="/static/images/icon/camera.svg" class="nav-icon"> 摄像头管理</a>
+            <a href="#" id="navCameras" class="nav-item active"><img src="/static/images/icon/camera.svg" class="nav-icon"> 摄像头管理</a>
             <a href="#" id="navDashboard" class="nav-item"><img src="/static/images/icon/dashboard.svg" class="nav-icon"> 监控大屏</a>
         </nav>
         <a href="#" id="navAbout" class="nav-item"><img src="/static/images/icon/about.svg" class="nav-icon"> 关于</a>
@@ -15,17 +15,31 @@
         </div>
     </aside>
     <main class="main-content">
-        <header class="page-header">
-            <h1>摄像头管理</h1>
-            <div class="header-actions">
-                <button id="scanBtn" class="btn-secondary"><img src="/static/images/icon/scan.svg" class="btn-icon"> 扫描设备</button>
-                <button id="addCameraBtn" class="btn-primary">+ 添加摄像头</button>
-            </div>
-        </header>
+        <!-- 摄像头管理视图 -->
+        <div id="viewCameras">
+            <header class="page-header">
+                <h1>摄像头管理</h1>
+                <div class="header-actions">
+                    <button id="scanBtn" class="btn-secondary"><img src="/static/images/icon/scan.svg" class="btn-icon"> 扫描设备</button>
+                    <button id="addCameraBtn" class="btn-primary">+ 添加摄像头</button>
+                </div>
+            </header>
 
-        <section class="camera-grid" id="cameraGrid">
-            <div class="loading">加载中...</div>
-        </section>
+            <section class="camera-grid" id="cameraGrid">
+                <div class="loading">加载中...</div>
+            </section>
+        </div>
+
+        <!-- 监控大屏视图 -->
+        <div id="viewDashboards" style="display:none">
+            <header class="page-header">
+                <h1>监控大屏</h1>
+                <div class="header-actions">
+                    <button id="createDashboardBtn" class="btn-primary">+ 创建大屏</button>
+                </div>
+            </header>
+            <div id="dashboardListView"></div>
+        </div>
     </main>
 </div>
 
@@ -117,6 +131,7 @@
                         <th class="col-ip">IP 地址</th>
                         <th class="col-user">用户名</th>
                         <th class="col-pass">密码</th>
+                        <th class="col-record">存储回放</th>
                     </tr>
                 </thead>
                 <tbody id="scanTbody"></tbody>
@@ -132,16 +147,59 @@
     </div>
 </div>
 
-<!-- 大屏管理弹窗 -->
-<div id="dashboardModal" class="modal" style="display:none">
-    <div class="modal-content modal-wide">
+<!-- 创建大屏弹窗 -->
+<div id="createDashboardModal" class="modal" style="display:none">
+    <div class="modal-content" style="width:480px">
         <span class="modal-close">&times;</span>
-        <h2>监控大屏管理</h2>
-        <div class="dashboard-toolbar">
-            <input type="text" id="newDashboardName" placeholder="输入大屏名称">
-            <button id="createDashboardBtn" class="btn-primary">创建大屏</button>
+        <h2>创建监控大屏</h2>
+        <div class="form-group">
+            <label for="createDashName">大屏名称 <span class="required">*</span></label>
+            <input type="text" id="createDashName" placeholder="例如：正门监控" required>
         </div>
-        <div id="dashboardList"></div>
+        <div class="form-group">
+            <label for="createDashPath">分享路径（可选，留空自动生成）</label>
+            <div class="url-prefix-input">
+                <span class="url-prefix">/dashboard-view/</span>
+                <input type="text" id="createDashPath" placeholder="留空自动生成">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group flex-1">
+                <label for="createDashCols">列数</label>
+                <select id="createDashCols" class="form-select">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4" selected>4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+            </div>
+            <div class="form-group flex-1">
+                <label for="createDashRows">行数</label>
+                <select id="createDashRows" class="form-select">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+            </div>
+        </div>
+        <div id="createDashResult" style="display:none">
+            <div class="form-group">
+                <label>分享链接（免密访问）</label>
+                <div class="url-row">
+                    <input type="text" id="createDashUrl" readonly>
+                    <button class="btn-sm btn-primary" id="copyDashUrlBtn">复制</button>
+                </div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button id="createDashSubmitBtn" class="btn-primary">创建</button>
+            <button type="button" class="btn-secondary" id="createDashCancelBtn">取消</button>
+        </div>
     </div>
 </div>
 
@@ -547,7 +605,7 @@ function startScanStream() {
             setScanActive(false);
             setScanStatus('completed', '扫描完成');
             if (deviceCount === 0) {
-                scanTbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">未扫描到设备</div></td></tr>';
+                scanTbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">未扫描到设备</div></td></tr>';
             }
             updateScanCount();
             return;
@@ -563,7 +621,7 @@ function startScanStream() {
         setScanActive(false);
         setScanStatus('error', '扫描中断');
         if (deviceCount === 0) {
-            scanTbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">扫描中断或未发现设备</div></td></tr>';
+            scanTbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">扫描中断或未发现设备</div></td></tr>';
         }
         updateScanCount();
     };
@@ -582,6 +640,7 @@ function appendScanDevice(dev) {
         <td class="col-ip">${escHtml(dev.ip)}<input type="hidden" class="scan-ip" value="${escHtml(dev.ip)}"><input type="hidden" class="scan-brand" value="${escHtml(dev.brand || '')}"></td>
         <td class="col-user"><input type="text" class="scan-input scan-user" placeholder="admin" value="admin"></td>
         <td class="col-pass"><input type="text" class="scan-input scan-pass" placeholder="密码" value="admin123"></td>
+        <td class="col-record"><input type="checkbox" class="scan-record"></td>
     `;
     tr.querySelector('.scan-check').onchange = updateScanCount;
     scanTbody.appendChild(tr);
@@ -627,6 +686,7 @@ document.getElementById('scanBatchAddBtn').onclick = async function() {
             password: row.querySelector('.scan-pass')?.value || '',
             location: '',
             remark: '',
+            record_enabled: row.querySelector('.scan-record')?.checked || false,
         });
     });
 
@@ -659,11 +719,81 @@ document.getElementById('scanBatchAddBtn').onclick = async function() {
 // ── Dashboard ───────────────────────────────────────
 
 let currentDashboards = [];
+let cachedLanIp = null;
+
+async function getLanIp() {
+    if (cachedLanIp) return cachedLanIp;
+    const result = await apiFetch('/api/system/lan-ip');
+    if (result.code === 200) {
+        cachedLanIp = result.data;
+        return result.data;
+    }
+    return {ip: window.location.hostname, port: location.port || 5500};
+}
+
+document.getElementById('createDashboardBtn').onclick = function() {
+    document.getElementById('createDashName').value = '';
+    document.getElementById('createDashPath').value = '';
+    document.getElementById('createDashCols').value = '4';
+    document.getElementById('createDashRows').value = '3';
+    document.getElementById('createDashResult').style.display = 'none';
+    document.getElementById('createDashSubmitBtn').textContent = '创建';
+    document.getElementById('createDashboardModal').style.display = 'flex';
+};
+
+document.getElementById('createDashSubmitBtn').onclick = async function() {
+    const name = document.getElementById('createDashName').value.trim();
+    if (!name) return alert('请输入大屏名称');
+    const token = document.getElementById('createDashPath').value.trim() || undefined;
+    const cols = parseInt(document.getElementById('createDashCols').value) || 4;
+    const rows = parseInt(document.getElementById('createDashRows').value) || 3;
+    this.disabled = true;
+    this.textContent = '创建中...';
+    const result = await apiFetch(API.dashboards, {
+        method: 'POST',
+        body: JSON.stringify({name, token, cols, rows}),
+    });
+    this.disabled = false;
+    if (result.code === 201) {
+        const lanIp = await getLanIp();
+        const shareUrl = `http://${lanIp.ip}:${lanIp.port}/dashboard-view/${result.data.token}`;
+        document.getElementById('createDashResult').style.display = 'block';
+        document.getElementById('createDashUrl').value = shareUrl;
+        document.getElementById('createDashSubmitBtn').textContent = '继续创建';
+        document.getElementById('createDashName').value = '';
+        document.getElementById('createDashPath').value = '';
+        loadDashboards();
+    } else {
+        this.textContent = '创建';
+        alert(result.message);
+    }
+};
+
+document.getElementById('createDashCancelBtn').onclick = function() {
+    document.getElementById('createDashboardModal').style.display = 'none';
+};
+
+document.getElementById('copyDashUrlBtn').onclick = function() {
+    navigator.clipboard.writeText(document.getElementById('createDashUrl').value);
+};
+
+// ── Navigation ──────────────────────────────────────
+
+document.getElementById('navCameras').onclick = function(e) {
+    e.preventDefault();
+    document.querySelector('.nav-item.active').classList.remove('active');
+    this.classList.add('active');
+    document.getElementById('viewDashboards').style.display = 'none';
+    document.getElementById('viewCameras').style.display = 'block';
+};
 
 document.getElementById('navDashboard').onclick = function(e) {
     e.preventDefault();
+    document.querySelector('.nav-item.active').classList.remove('active');
+    this.classList.add('active');
+    document.getElementById('viewCameras').style.display = 'none';
+    document.getElementById('viewDashboards').style.display = 'block';
     loadDashboards();
-    document.getElementById('dashboardModal').style.display = 'flex';
 };
 
 document.getElementById('navAbout').onclick = function(e) {
@@ -677,35 +807,22 @@ document.querySelectorAll('.modal-close').forEach(el => {
     };
 });
 
-document.getElementById('createDashboardBtn').onclick = async function() {
-    const name = document.getElementById('newDashboardName').value.trim();
-    if (!name) return alert('请输入大屏名称');
-    const result = await apiFetch(API.dashboards, {
-        method: 'POST',
-        body: JSON.stringify({name}),
-    });
-    if (result.code === 201) {
-        document.getElementById('newDashboardName').value = '';
-        loadDashboards();
-    } else {
-        alert(result.message);
-    }
-};
-
 async function loadDashboards() {
     const result = await apiFetch(API.dashboards);
     if (result.code !== 200) return;
     currentDashboards = result.data || [];
-    const list = document.getElementById('dashboardList');
+    const list = document.getElementById('dashboardListView');
     if (currentDashboards.length === 0) {
-        list.innerHTML = '<div class="empty-state">暂无监控大屏，创建一个吧</div>';
+        list.innerHTML = '<div class="empty-state">暂无监控大屏，点击右上角创建一个</div>';
         return;
     }
+    const lanIp = await getLanIp();
     list.innerHTML = currentDashboards.map(db => `
         <div class="dashboard-item">
             <div class="dashboard-info">
                 <strong>${db.name}</strong>
-                <span class="dashboard-count">${(db.camera_ids || []).length} 个摄像头</span>
+                <div class="dashboard-url"><a href="http://${lanIp.ip}:${lanIp.port}/dashboard-view/${db.token}" target="_blank" rel="noopener">http://${lanIp.ip}:${lanIp.port}/dashboard-view/${db.token}</a></div>
+                <span class="dashboard-count">${(db.camera_ids || []).length} 个摄像头 · ${db.cols||4}×${db.rows||3} 布局</span>
             </div>
             <div class="dashboard-actions">
                 <button class="btn-sm btn-primary" onclick="viewDashboard('${db.id}')">管理</button>
@@ -720,7 +837,8 @@ async function viewDashboard(id) {
     if (result.code !== 200) return;
     const db = result.data;
     document.getElementById('detailDashboardTitle').textContent = db.name;
-    const shareUrl = `${window.location.origin}/dashboard-view/${db.token}`;
+    const lanIp = await getLanIp();
+    const shareUrl = `http://${lanIp.ip}:${lanIp.port}/dashboard-view/${db.token}`;
 
     let content = `
         <div class="dashboard-detail-toolbar">
@@ -732,56 +850,118 @@ async function viewDashboard(id) {
                 </div>
             </div>
             <button class="btn-sm btn-secondary" onclick="regenerateToken('${db.id}')">重置链接</button>
+            <button class="btn-sm btn-primary" onclick="window.open('${shareUrl}','_blank')">打开页面</button>
         </div>
-        <h3>已选摄像头（${(db.cameras || []).length}）</h3>
-        <div class="dashboard-cameras">
-            ${(db.cameras || []).map(cam => `
-                <div class="dashboard-camera-item">
-                    <span>${cam.name}</span>
-                    <button class="btn-sm btn-danger" onclick="removeCamFromDashboard('${db.id}','${cam.id}')">移除</button>
-                </div>
-            `).join('') || '<div class="empty-state">暂未添加摄像头</div>'}
+        <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group flex-1" style="margin-bottom:0">
+                <label>列数</label>
+                <select id="detailDashCols" class="form-select">
+                    <option value="1"${(db.cols||4)==1?' selected':''}>1</option>
+                    <option value="2"${(db.cols||4)==2?' selected':''}>2</option>
+                    <option value="3"${(db.cols||4)==3?' selected':''}>3</option>
+                    <option value="4"${(db.cols||4)==4?' selected':''}>4</option>
+                    <option value="5"${(db.cols||4)==5?' selected':''}>5</option>
+                    <option value="6"${(db.cols||4)==6?' selected':''}>6</option>
+                </select>
+            </div>
+            <div class="form-group flex-1" style="margin-bottom:0">
+                <label>行数</label>
+                <select id="detailDashRows" class="form-select">
+                    <option value="1"${(db.rows||3)==1?' selected':''}>1</option>
+                    <option value="2"${(db.rows||3)==2?' selected':''}>2</option>
+                    <option value="3"${(db.rows||3)==3?' selected':''}>3</option>
+                    <option value="4"${(db.rows||3)==4?' selected':''}>4</option>
+                    <option value="5"${(db.rows||3)==5?' selected':''}>5</option>
+                    <option value="6"${(db.rows||3)==6?' selected':''}>6</option>
+                </select>
+            </div>
         </div>
-        <h3>添加摄像头</h3>
-        <select id="addCameraSelect" class="form-select">
-            <option value="">-- 选择摄像头 --</option>
-        </select>
-        <button class="btn-primary" onclick="addCamToDashboard('${db.id}')">添加</button>
+        <div class="dual-list-wrap">
+            <div class="dual-list-box">
+                <h4>可选摄像头</h4>
+                <div class="dual-list" id="availableCamList"></div>
+            </div>
+            <div class="dual-list-actions">
+                <button class="btn-sm btn-primary" onclick="moveToSelected()">&gt;&gt;</button>
+                <button class="btn-sm btn-primary" onclick="moveToAvailable()">&lt;&lt;</button>
+            </div>
+            <div class="dual-list-box">
+                <h4>已选摄像头</h4>
+                <div class="dual-list" id="selectedCamList"></div>
+            </div>
+        </div>
+        <div class="form-actions" style="margin-top:16px">
+            <button class="btn-primary" onclick="saveDashboardCameras('${db.id}')">保存</button>
+        </div>
     `;
     document.getElementById('dashboardDetailContent').innerHTML = content;
     document.getElementById('dashboardDetailModal').style.display = 'flex';
 
     const allCams = await apiFetch(API.cameras);
     if (allCams.code === 200 && allCams.data) {
-        const select = document.getElementById('addCameraSelect');
         const existingIds = (db.cameras || []).map(c => c.id);
-        allCams.data.filter(c => !existingIds.includes(c.id)).forEach(cam => {
-            const opt = document.createElement('option');
-            opt.value = cam.id;
-            opt.textContent = cam.name;
-            select.appendChild(opt);
-        });
+        window._availCams = allCams.data.filter(c => !existingIds.includes(c.id));
+        window._selCams = db.cameras || [];
+        renderDualList();
     }
 }
 
-async function addCamToDashboard(dashboardId) {
-    const select = document.getElementById('addCameraSelect');
-    const cameraId = select.value;
-    if (!cameraId) return alert('请选择摄像头');
-    const result = await apiFetch(`${API.dashboards}/${dashboardId}/cameras`, {
-        method: 'POST',
-        body: JSON.stringify({camera_id: cameraId}),
+function renderDualList() {
+    renderList('availableCamList', window._availCams);
+    renderList('selectedCamList', window._selCams);
+}
+
+function renderList(elementId, cameras) {
+    const el = document.getElementById(elementId);
+    if (!cameras || cameras.length === 0) {
+        el.innerHTML = '<div class="empty-state">暂无</div>';
+        return;
+    }
+    el.innerHTML = cameras.map(cam => `
+        <label class="cam-check-item">
+            <input type="checkbox" class="cam-check" value="${cam.id}">
+            <span>${escHtml(cam.name)}${cam.host ? ' (' + escHtml(cam.host) + ')' : ''}</span>
+        </label>
+    `).join('');
+}
+
+function getCheckedIds(elementId) {
+    const el = document.getElementById(elementId);
+    return Array.from(el.querySelectorAll('.cam-check:checked')).map(cb => cb.value);
+}
+
+function moveToSelected() {
+    const checked = getCheckedIds('availableCamList');
+    if (checked.length === 0) return;
+    const moving = window._availCams.filter(c => checked.includes(c.id));
+    window._selCams = [...window._selCams, ...moving];
+    window._availCams = window._availCams.filter(c => !checked.includes(c.id));
+    renderDualList();
+}
+
+function moveToAvailable() {
+    const checked = getCheckedIds('selectedCamList');
+    if (checked.length === 0) return;
+    const moving = window._selCams.filter(c => checked.includes(c.id));
+    window._availCams = [...window._availCams, ...moving];
+    window._selCams = window._selCams.filter(c => !checked.includes(c.id));
+    renderDualList();
+}
+
+async function saveDashboardCameras(dashboardId) {
+    const ids = window._selCams.map(c => c.id);
+    const cols = parseInt(document.getElementById('detailDashCols').value) || 4;
+    const rows = parseInt(document.getElementById('detailDashRows').value) || 3;
+    const result = await apiFetch(`${API.dashboards}/${dashboardId}`, {
+        method: 'PUT',
+        body: JSON.stringify({camera_ids: ids, cols, rows}),
     });
     if (result.code === 200) {
         viewDashboard(dashboardId);
+        loadDashboards();
     } else {
         alert(result.message);
     }
-}
-
-async function removeCamFromDashboard(dashboardId, cameraId) {
-    const result = await apiFetch(`${API.dashboards}/${dashboardId}/cameras/${cameraId}`, {method: 'DELETE'});
-    if (result.code === 200) viewDashboard(dashboardId);
 }
 
 async function regenerateToken(dashboardId) {

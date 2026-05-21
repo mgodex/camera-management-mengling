@@ -49,6 +49,7 @@ def add_camera():
         stream_type=data.get('stream_type', 'sub'),
         location=data.get('location', ''),
         remark=data.get('remark', ''),
+        record_enabled=data.get('record_enabled', False),
     )
     return created(data=_sanitize(camera))
 

@@ -16,12 +16,20 @@ def get_dashboard_by_token(token):
     return dashboard_storage().find_by(token=token)
 
 
-def create_dashboard(name, camera_ids=None):
+def create_dashboard(name, camera_ids=None, token=None, cols=4, rows=3):
+    if token:
+        existing = dashboard_storage().find_by(token=token)
+        if existing:
+            return None
+    else:
+        token = secrets.token_urlsafe(16)
     dashboard = {
         'id': str(uuid.uuid4()),
         'name': name,
-        'token': secrets.token_urlsafe(16),
+        'token': token,
         'camera_ids': camera_ids or [],
+        'cols': cols,
+        'rows': rows,
         'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
         'updated_at': time.strftime('%Y-%m-%d %H:%M:%S'),
     }
