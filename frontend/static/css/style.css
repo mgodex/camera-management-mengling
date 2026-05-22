@@ -186,6 +186,20 @@ body {
     color: var(--text-secondary);
 }
 
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+}
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
 input[type="text"],
 input[type="password"],
 textarea,
@@ -923,3 +937,265 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Scan brand hidden field ── */
 .scan-brand { display: none; }
+
+/* ── Glass card (reusable) ── */
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--glass-shadow);
+}
+
+/* ── Recording Settings ── */
+.recording-settings-body {
+    max-width: 800px;
+}
+
+.recording-cam-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.recording-cam-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.4);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+.recording-cam-info strong {
+    font-size: 14px;
+    display: block;
+}
+
+.recording-cam-info .cam-host {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.recording-error {
+    font-size: 11px;
+    color: var(--danger);
+    margin-top: 4px;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recording-cam-status {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* ── Recording Playback ── */
+.rp-layout {
+    display: flex;
+    gap: 16px;
+    height: calc(100vh - 160px);
+    min-height: 480px;
+}
+
+.rp-camera-panel {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.rp-cam-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rp-cam-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    gap: 8px;
+}
+
+.rp-cam-item:hover { background: rgba(0,122,255,0.06); }
+.rp-cam-item.active { background: rgba(0,122,255,0.12); }
+
+.rp-cam-item.disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+.rp-cam-item.disabled:hover { background: transparent; }
+
+.rp-cam-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.rp-cam-name {
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rp-cam-host {
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rp-cam-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.rp-cam-badge.has-rec {
+    background: rgba(0,122,255,0.1);
+    color: #0066d6;
+    border: 1px solid rgba(0,122,255,0.2);
+}
+
+.rp-cam-badge.no-rec {
+    background: rgba(142,142,147,0.1);
+    color: var(--text-secondary);
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+.rp-right-panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rp-date-row {
+    flex-shrink: 0;
+}
+
+.rp-date-input {
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+}
+
+.rp-timeline {
+    display: flex;
+    gap: 3px;
+    overflow-x: auto;
+    padding: 6px 0;
+}
+
+.rp-hour-block {
+    flex-shrink: 0;
+    width: 44px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.rp-hour-block.has-data {
+    background: var(--primary);
+    color: #fff;
+}
+
+.rp-hour-block.has-data:hover {
+    background: var(--primary-hover);
+}
+
+.rp-hour-block.no-data {
+    background: rgba(0,0,0,0.05);
+    color: var(--text-secondary);
+    cursor: default;
+}
+
+.rp-hour-block.active {
+    outline: 3px solid rgba(0,122,255,0.4);
+    outline-offset: 2px;
+}
+
+.rp-player-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.rp-player-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.rp-player-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.rp-player {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* ── Speed Controls ── */
+.speed-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.speed-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-secondary);
+}
+
+.speed-btn:hover {
+    background: rgba(0,122,255,0.08);
+    border-color: rgba(0,122,255,0.2);
+}
+
+.speed-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}

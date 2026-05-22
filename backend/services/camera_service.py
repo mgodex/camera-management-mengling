@@ -57,6 +57,15 @@ def add_camera(name, host='', rtsp_url='', username='', password='',
         'updated_at': time.strftime('%Y-%m-%d %H:%M:%S'),
     }
     camera_storage().insert(camera)
+    if record_enabled and camera.get('rtsp_url'):
+        try:
+            from backend.services.recording_service import recording_manager
+            ok, msg = recording_manager.start_recording(camera['id'], camera['rtsp_url'])
+            if not ok:
+                print(f'[camera_service] add_camera start_recording failed for {camera["id"]}: {msg}')
+        except Exception as e:
+            print(f'[camera_service] add_camera recording error: {e}')
+            pass
     return camera
 
 
@@ -65,6 +74,9 @@ def update_camera(camera_id, data):
     cam = get_camera(camera_id)
     if not cam:
         return None
+
+    old_enabled = cam.get('record_enabled', False)
+    new_enabled = data.get('record_enabled', old_enabled)
 
     brand = data.get('brand', cam.get('brand', ''))
     stream_type = data.get('stream_type', cam.get('stream_type', 'sub'))
@@ -81,10 +93,31 @@ def update_camera(camera_id, data):
             data['rtsp_url'] = _build_rtsp_url(host, port, path, username, password)
 
     data.setdefault('stream_type', stream_type)
-    return camera_storage().update(camera_id, data)
+
+    result = camera_storage().update(camera_id, data)
+
+    # Start/stop recording based on record_enabled change
+    try:
+        from backend.services.recording_service import recording_manager
+        rtsp_url = data.get('rtsp_url', cam.get('rtsp_url', ''))
+        if new_enabled and not old_enabled and rtsp_url:
+            ok, msg = recording_manager.start_recording(camera_id, rtsp_url)
+            if not ok:
+                print(f'[camera_service] start_recording failed for {camera_id}: {msg}')
+        elif old_enabled and not new_enabled:
+            recording_manager.stop_recording(camera_id)
+    except Exception:
+        pass
+
+    return result
 
 
 def delete_camera(camera_id):
+    try:
+        from backend.services.recording_service import recording_manager
+        recording_manager.stop_recording(camera_id)
+    except Exception:
+        pass
     return camera_storage().delete(camera_id)
 
 

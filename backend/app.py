@@ -24,12 +24,14 @@ def create_app():
     from backend.api.dashboard import dashboard_bp
     from backend.api.stream import stream_bp
     from backend.api.pages import pages_bp
+    from backend.api.recording import recording_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(cameras_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(stream_bp)
     app.register_blueprint(pages_bp)
+    app.register_blueprint(recording_bp)
 
     init_default_user()
 

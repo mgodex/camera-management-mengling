@@ -7,6 +7,8 @@
         <nav class="sidebar-nav-main">
             <a href="#" id="navCameras" class="nav-item active"><img src="/static/images/icon/camera.svg" class="nav-icon"> 摄像头管理</a>
             <a href="#" id="navDashboard" class="nav-item"><img src="/static/images/icon/dashboard.svg" class="nav-icon"> 监控大屏</a>
+            <a href="#" id="navRecordingSettings" class="nav-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:middle;margin-right:8px"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg> 回放存储设置</a>
+            <a href="#" id="navRecordingPlayback" class="nav-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:middle;margin-right:8px"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/></svg> 回放查看</a>
         </nav>
         <a href="#" id="navAbout" class="nav-item"><img src="/static/images/icon/about.svg" class="nav-icon"> 关于</a>
         <div class="sidebar-footer">
@@ -39,6 +41,87 @@
                 </div>
             </header>
             <div id="dashboardListView"></div>
+        </div>
+
+        <!-- 回放存储设置视图 -->
+        <div id="viewRecordingSettings" style="display:none">
+            <header class="page-header">
+                <h1>回放存储设置</h1>
+            </header>
+            <div class="recording-settings-body">
+                <div class="glass-card" style="margin-bottom:20px">
+                    <h3 style="margin-bottom:16px;font-size:15px">全局设置</h3>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="rsRetentionDays">录像保留天数</label>
+                            <input type="number" id="rsRetentionDays" min="1" max="365" value="7">
+                        </div>
+                        <div class="form-group flex-2">
+                            <label for="rsStoragePath">存储路径</label>
+                            <div class="url-row">
+                                <input type="text" id="rsStoragePath" readonly style="background:rgba(255,255,255,0.3)">
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="rsSaveConfigBtn">保存设置</button>
+                    <span id="rsSaveStatus" style="margin-left:12px;font-size:13px;color:var(--text-secondary)"></span>
+                </div>
+                <div class="glass-card">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                        <h3 style="font-size:15px">摄像头录制状态</h3>
+                        <div>
+                            <button class="btn-sm btn-primary" id="rsStartAllBtn">全部开始录制</button>
+                            <button class="btn-sm btn-secondary" id="rsStopAllBtn" style="margin-left:8px">全部停止录制</button>
+                        </div>
+                    </div>
+                    <div id="rsCameraList" class="recording-cam-list">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 回放查看视图 -->
+        <div id="viewRecordingPlayback" style="display:none">
+            <header class="page-header">
+                <h1>回放查看</h1>
+            </header>
+            <div class="rp-layout">
+                <div class="rp-camera-panel glass-card">
+                    <h3 style="font-size:14px;margin-bottom:12px">摄像头</h3>
+                    <div id="rpCamList" class="rp-cam-list"></div>
+                </div>
+                <div class="rp-right-panel">
+                    <div id="rpNoCameraSelected" class="empty-state" style="margin-top:80px">请从左侧选择摄像头</div>
+                    <div id="rpCameraContent" style="display:none;flex-direction:column;gap:12px;height:100%">
+                        <div class="glass-card rp-date-row">
+                            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                                <label style="font-size:13px;font-weight:500;white-space:nowrap">选择日期</label>
+                                <input type="date" id="rpDatePicker" class="rp-date-input">
+                                <button class="btn-sm btn-primary" id="rpRefreshDateBtn">加载</button>
+                                <span id="rpDateHint" style="font-size:12px;color:var(--text-secondary)"></span>
+                            </div>
+                        </div>
+                        <div class="glass-card" style="flex-shrink:0">
+                            <div id="rpTimeline" class="rp-timeline"></div>
+                        </div>
+                        <div class="glass-card rp-player-card" style="flex:1;display:flex;flex-direction:column;min-height:0">
+                            <div class="rp-player-header">
+                                <div class="rp-player-title">播放器</div>
+                                <div class="speed-controls">
+                                    <button class="speed-btn active" id="rpSpeed1x">1x</button>
+                                    <button class="speed-btn" id="rpSpeed15x">1.5x</button>
+                                    <button class="speed-btn" id="rpSpeed2x">2x</button>
+                                </div>
+                            </div>
+                            <div id="rpPlayer" class="rp-player" style="flex:1;min-height:0">
+                                <video id="rpVideo" controls muted playsinline preload="metadata" style="width:100%;height:100%;border-radius:var(--radius-sm);object-fit:contain;background:#000"></video>
+                                <div id="rpNoFile" class="empty-state" style="padding:20px">请选择时间段播放</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 </div>
@@ -96,6 +179,12 @@
                     <label for="cameraRemark">备注</label>
                     <input type="text" id="cameraRemark">
                 </div>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="cameraRecordEnabled">
+                    <span>存储回放</span>
+                </label>
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn-primary" id="cameraSubmitBtn">保存</button>
@@ -382,6 +471,7 @@ function openCameraForm(cam) {
     document.getElementById('cameraPassword').value = cam ? (cam.password || '') : '';
     document.getElementById('cameraLocation').value = cam ? (cam.location || '') : '';
     document.getElementById('cameraRemark').value = cam ? (cam.remark || '') : '';
+    document.getElementById('cameraRecordEnabled').checked = cam ? (cam.record_enabled || false) : false;
     cameraModal.style.display = 'flex';
 }
 
@@ -398,6 +488,7 @@ document.getElementById('cameraForm').onsubmit = async function(e) {
         password: document.getElementById('cameraPassword').value,
         location: document.getElementById('cameraLocation').value,
         remark: document.getElementById('cameraRemark').value,
+        record_enabled: document.getElementById('cameraRecordEnabled').checked,
     };
 
     if (!data.host) {
@@ -784,6 +875,8 @@ document.getElementById('navCameras').onclick = function(e) {
     document.querySelector('.nav-item.active').classList.remove('active');
     this.classList.add('active');
     document.getElementById('viewDashboards').style.display = 'none';
+    document.getElementById('viewRecordingSettings').style.display = 'none';
+    document.getElementById('viewRecordingPlayback').style.display = 'none';
     document.getElementById('viewCameras').style.display = 'block';
 };
 
@@ -792,8 +885,32 @@ document.getElementById('navDashboard').onclick = function(e) {
     document.querySelector('.nav-item.active').classList.remove('active');
     this.classList.add('active');
     document.getElementById('viewCameras').style.display = 'none';
+    document.getElementById('viewRecordingSettings').style.display = 'none';
+    document.getElementById('viewRecordingPlayback').style.display = 'none';
     document.getElementById('viewDashboards').style.display = 'block';
     loadDashboards();
+};
+
+document.getElementById('navRecordingSettings').onclick = function(e) {
+    e.preventDefault();
+    document.querySelector('.nav-item.active').classList.remove('active');
+    this.classList.add('active');
+    document.getElementById('viewCameras').style.display = 'none';
+    document.getElementById('viewDashboards').style.display = 'none';
+    document.getElementById('viewRecordingPlayback').style.display = 'none';
+    document.getElementById('viewRecordingSettings').style.display = 'block';
+    loadRecordingSettings();
+};
+
+document.getElementById('navRecordingPlayback').onclick = function(e) {
+    e.preventDefault();
+    document.querySelector('.nav-item.active').classList.remove('active');
+    this.classList.add('active');
+    document.getElementById('viewCameras').style.display = 'none';
+    document.getElementById('viewDashboards').style.display = 'none';
+    document.getElementById('viewRecordingSettings').style.display = 'none';
+    document.getElementById('viewRecordingPlayback').style.display = 'block';
+    loadRecordingPlayback();
 };
 
 document.getElementById('navAbout').onclick = function(e) {
@@ -978,6 +1095,287 @@ async function deleteDashboard(id) {
         loadDashboards();
     }
 }
+
+// ── 回放存储设置 ────────────────────────────────────
+
+let rsCameras = [];
+
+async function loadRecordingSettings() {
+    const configResp = await apiFetch('/api/recording/config');
+    if (configResp.code === 200) {
+        document.getElementById('rsRetentionDays').value = configResp.data.retention_days || 7;
+        document.getElementById('rsStoragePath').value = configResp.data.storage_path || '';
+    }
+    const camResp = await apiFetch('/api/recording/cameras');
+    if (camResp.code === 200) {
+        rsCameras = camResp.data || [];
+        renderRsCameraList();
+    }
+}
+
+function renderRsCameraList() {
+    const el = document.getElementById('rsCameraList');
+    if (rsCameras.length === 0) {
+        el.innerHTML = '<div class="empty-state">暂无摄像头</div>';
+        return;
+    }
+    el.innerHTML = rsCameras.map(cam => `
+        <div class="recording-cam-row">
+            <div class="recording-cam-info">
+                <strong>${escHtml(cam.name)}</strong>
+                <span class="cam-host">${cam.host}</span>
+                ${cam.record_enabled && !cam.is_recording && cam.recording_error ? `<div class="recording-error" title="${escHtml(cam.recording_error)}">${escHtml(cam.recording_error.slice(0,80))}</div>` : ''}
+            </div>
+            <div class="recording-cam-status">
+                <span class="badge ${cam.record_enabled ? 'badge-onvif' : ''}">${cam.record_enabled ? '已启用' : '未启用'}</span>
+                <span class="badge ${cam.is_recording ? 'badge-onvif' : ''}">${cam.is_recording ? '录制中' : '未录制'}</span>
+                <span class="badge ${cam.status === 'online' ? 'badge-onvif' : ''}">${cam.status === 'online' ? '在线' : '离线'}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+document.getElementById('rsSaveConfigBtn').onclick = async function() {
+    const days = parseInt(document.getElementById('rsRetentionDays').value) || 7;
+    const resp = await apiFetch('/api/recording/config', {
+        method: 'PUT',
+        body: JSON.stringify({retention_days: days}),
+    });
+    const status = document.getElementById('rsSaveStatus');
+    if (resp.code === 200) {
+        status.textContent = '已保存';
+        setTimeout(() => { status.textContent = ''; }, 2000);
+    } else {
+        status.textContent = '保存失败';
+    }
+};
+
+document.getElementById('rsStartAllBtn').onclick = async function() {
+    this.disabled = true;
+    this.textContent = '启动中...';
+    const resp = await apiFetch('/api/recording/start-all', {method: 'POST'});
+    this.disabled = false;
+    this.textContent = '全部开始录制';
+    if (resp.code === 200) {
+        loadRecordingSettings();
+    }
+};
+
+document.getElementById('rsStopAllBtn').onclick = async function() {
+    const resp = await apiFetch('/api/recording/stop-all', {method: 'POST'});
+    if (resp.code === 200) {
+        loadRecordingSettings();
+    }
+};
+
+// ── 回放查看 ────────────────────────────────────────
+
+let rpCameras = [];
+let rpCurrentCameraId = '';
+let rpCurrentDate = '';
+let rpHls = null;
+
+async function loadRecordingPlayback() {
+    const camResp = await apiFetch('/api/recording/cameras');
+    if (camResp.code === 200) {
+        rpCameras = camResp.data || [];
+    }
+    rpCurrentCameraId = '';
+    document.getElementById('rpNoCameraSelected').style.display = 'block';
+    document.getElementById('rpCameraContent').style.display = 'none';
+    renderRpCamList();
+}
+
+function renderRpCamList() {
+    const el = document.getElementById('rpCamList');
+    if (rpCameras.length === 0) {
+        el.innerHTML = '<div class="empty-state" style="padding:10px;font-size:13px">暂无摄像头</div>';
+        return;
+    }
+    el.innerHTML = rpCameras.map(cam => {
+        const hasRec = cam.has_recordings && cam.record_enabled;
+        const cls = cam.id === rpCurrentCameraId ? ' active' : '';
+        const disabledCls = !hasRec ? ' disabled' : '';
+        let badge = '';
+        if (!cam.record_enabled) {
+            badge = '<span class="rp-cam-badge no-rec">未启用</span>';
+        } else if (!cam.has_recordings) {
+            badge = '<span class="rp-cam-badge no-rec">无录像</span>';
+        } else {
+            badge = '<span class="rp-cam-badge has-rec">有录像</span>';
+        }
+        return `<div class="rp-cam-item${cls}${disabledCls}" data-id="${cam.id}">
+            <div class="rp-cam-info">
+                <div class="rp-cam-name">${escHtml(cam.name)}</div>
+                <div class="rp-cam-host">${escHtml(cam.host)}</div>
+            </div>
+            ${badge}
+        </div>`;
+    }).join('');
+    el.querySelectorAll('.rp-cam-item:not(.disabled)').forEach(item => {
+        item.onclick = () => selectRpCam(item.dataset.id);
+    });
+}
+
+function selectRpCam(cameraId) {
+    if (cameraId === rpCurrentCameraId) return;
+    rpCurrentCameraId = cameraId;
+    rpCurrentDate = '';
+    destroyRpPlayer();
+    document.getElementById('rpNoCameraSelected').style.display = 'none';
+    document.getElementById('rpCameraContent').style.display = 'flex';
+    renderRpCamList();
+    loadRpDates(cameraId);
+}
+
+async function loadRpDates(cameraId) {
+    const datePicker = document.getElementById('rpDatePicker');
+    const hint = document.getElementById('rpDateHint');
+    const resp = await apiFetch(`/api/recording/${cameraId}/files`);
+    if (resp.code !== 200) {
+        hint.textContent = '加载失败';
+        return;
+    }
+    const dates = resp.data.dates || [];
+    const today = new Date().toISOString().slice(0,10);
+    datePicker.value = today;
+    datePicker.min = dates.length > 0 ? dates[dates.length-1].replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3') : '';
+    datePicker.max = today;
+    if (dates.length === 0) {
+        hint.textContent = '暂无录像记录';
+        document.getElementById('rpTimeline').innerHTML = '<div class="empty-state" style="padding:10px;font-size:13px">该摄像头暂无录像</div>';
+        destroyRpPlayer();
+        return;
+    }
+    hint.textContent = `共 ${dates.length} 天录像`;
+    const sorted = dates.sort();
+    const latest = sorted[sorted.length-1];
+    selectRpDate(cameraId, latest);
+}
+
+document.getElementById('rpDatePicker').onchange = function() {
+    if (rpCurrentCameraId && this.value) {
+        const d = this.value.replace(/-/g, '');
+        selectRpDate(rpCurrentCameraId, d);
+    }
+};
+
+document.getElementById('rpRefreshDateBtn').onclick = function() {
+    if (rpCurrentCameraId) {
+        loadRpDates(rpCurrentCameraId);
+    }
+};
+
+async function selectRpDate(cameraId, date) {
+    rpCurrentDate = date;
+    const datePicker = document.getElementById('rpDatePicker');
+    datePicker.value = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`;
+    const resp = await apiFetch(`/api/recording/${cameraId}/files?date=${date}`);
+    if (resp.code !== 200) return;
+    const files = resp.data.files || [];
+    const hint = document.getElementById('rpDateHint');
+    hint.textContent = `${files.length} 个文件`;
+    renderRpTimeline(files);
+    if (files.length > 0) {
+        const firstHour = files[0].time.slice(0,2);
+        playRpTime(cameraId, date, firstHour);
+    } else {
+        destroyRpPlayer();
+    }
+}
+
+function renderRpTimeline(files) {
+    const timeline = document.getElementById('rpTimeline');
+    const byHour = {};
+    for (let h = 0; h < 24; h++) byHour[h] = [];
+    files.forEach(f => {
+        const h = parseInt(f.time.slice(0,2));
+        if (h < 24) byHour[h].push(f);
+    });
+    timeline.innerHTML = '';
+    for (let h = 0; h < 24; h++) {
+        const block = document.createElement('div');
+        const hasData = byHour[h].length > 0;
+        block.className = 'rp-hour-block' + (hasData ? ' has-data' : ' no-data');
+        block.textContent = `${String(h).padStart(2,'0')}:00`;
+        if (hasData) {
+            block.title = `${byHour[h].length} 个文件`;
+            block.onclick = () => playRpTime(rpCurrentCameraId, rpCurrentDate, `${h.toString().padStart(2,'0')}`);
+        }
+        timeline.appendChild(block);
+    }
+}
+
+function playRpTime(cameraId, date, startHour) {
+    destroyRpPlayer();
+    const startTime = startHour + '0000';
+    const endTime = startHour + '5959';
+    let playlistUrl = `/api/recording/${cameraId}/playlist?date=${date}&start_time=${startTime}&end_time=${endTime}`;
+    const video = document.getElementById('rpVideo');
+    const noFile = document.getElementById('rpNoFile');
+    const player = document.getElementById('rpPlayer');
+    noFile.style.display = 'none';
+    video.style.display = 'block';
+    document.querySelectorAll('.rp-hour-block.has-data').forEach(el => {
+        el.classList.toggle('active', el.textContent.trim().substring(0,2) === startHour);
+    });
+
+    if (Hls.isSupported()) {
+        rpHls = new Hls();
+        rpHls.on(Hls.Events.ERROR, function(evt, data) {
+            console.error('[playRpTime] HLS error:', data.type, data.details);
+            if (data.fatal) {
+                destroyRpPlayer();
+                noFile.textContent = '播放失败: ' + (data.details || '未知错误');
+                noFile.style.display = 'block';
+            }
+        });
+        rpHls.attachMedia(video);
+        rpHls.loadSource(playlistUrl);
+        rpHls.on(Hls.Events.MANIFEST_PARSED, () => {
+            console.log('[playRpTime] manifest parsed');
+            video.play().catch(e => console.log('[playRpTime] play error:', e));
+        });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = playlistUrl;
+        video.play().catch(() => {});
+    } else {
+        noFile.textContent = '浏览器不支持 HLS 播放';
+        noFile.style.display = 'block';
+        video.style.display = 'none';
+    }
+}
+
+function destroyRpPlayer() {
+    if (rpHls) {
+        rpHls.destroy();
+        rpHls = null;
+    }
+    const video = document.getElementById('rpVideo');
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    video.style.display = 'none';
+    document.getElementById('rpNoFile').style.display = 'block';
+    document.querySelectorAll('.rp-hour-block.active').forEach(el => el.classList.remove('active'));
+}
+
+// Playback speed control
+document.getElementById('rpSpeed1x').onclick = function() {
+    document.getElementById('rpVideo').playbackRate = 1.0;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+};
+document.getElementById('rpSpeed15x').onclick = function() {
+    document.getElementById('rpVideo').playbackRate = 1.5;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+};
+document.getElementById('rpSpeed2x').onclick = function() {
+    document.getElementById('rpVideo').playbackRate = 2.0;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+};
 
 // Logout
 document.getElementById('logoutBtn').onclick = async function() {
